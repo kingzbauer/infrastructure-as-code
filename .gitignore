@@ -1,2 +1,5 @@
 # Vim temp files
 *.sw?
+
+# python virtual env
+.venv/

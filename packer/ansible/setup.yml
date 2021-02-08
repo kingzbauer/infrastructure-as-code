@@ -1,0 +1,10 @@
+---
+- name: Setup beastly base node image
+  hosts: default
+  become: true
+
+  tasks:
+    - name: Install wireguard
+      package:
+        name: wireguard
+        state: present
