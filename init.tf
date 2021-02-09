@@ -6,6 +6,14 @@ variable "node_count" {
 
 variable "pvt_key" {}
 
+variable "k3s_version" {
+  default = "v1.20.2+k3s1"
+}
+
+variable "wireguard_base_ip" {
+  default = "10.0.8."
+}
+
 terraform {
   required_providers {
     digitalocean = {
@@ -41,14 +49,40 @@ resource "digitalocean_droplet" "nodes" {
 
 
 resource "local_file" "hosts" {
-  content  = templatefile("${path.module}/templates/hosts.tpl", { ips = digitalocean_droplet.nodes.*.ipv4_address })
+  content  = templatefile("${path.module}/templates/hosts.tpl", { ips = sort(digitalocean_droplet.nodes.*.ipv4_address) })
   filename = "${path.module}/ansible/hosts"
 }
 
 resource "local_file" "host_vars" {
-  for_each = zipmap(range(length(digitalocean_droplet.nodes)), digitalocean_droplet.nodes.*.ipv4_address)
-  content  = templatefile("${path.module}/templates/node_host_var.tpl", { ip_addr = each.value, index = each.key })
-  filename = "${path.module}/ansible/host_vars/node${each.key}"
+  count = var.node_count
+  content = templatefile("${path.module}/templates/node_host_var.tpl", {
+    ip_addr = element(digitalocean_droplet.nodes.*.ipv4_address, count.index),
+    index   = count.index
+  })
+  filename = "${path.module}/ansible/host_vars/node${count.index}"
+}
+
+resource "local_file" "group_vars" {
+  content = templatefile("${path.module}/templates/group_vars.all.tpl", {
+    k3s_version : var.k3s_version
+  })
+  filename = "${path.module}/ansible/group_vars/all"
+}
+
+resource "local_file" "master_vars" {
+  content = templatefile("${path.module}/templates/k3s_master.tpl", {
+    ip : "${var.wireguard_base_ip}1"
+  })
+  filename = "${path.module}/ansible/host_vars/node0"
+}
+
+resource "local_file" "agent_vars" {
+  count = var.node_count - 1
+  content = templatefile("${path.module}/templates/k3s_agent.tpl", {
+    node_name = "node${count.index + 1}"
+    ip        = "${var.wireguard_base_ip}${count.index + 2}"
+  })
+  filename = "${path.module}/ansible/host_vars/node${count.index + 1}"
 }
 
 resource "null_resource" "tester" {
@@ -65,6 +99,10 @@ resource "null_resource" "tester" {
   }
 
   provisioner "local-exec" {
-    command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -u root -i '${path.module}/ansible/hosts' --private-key ${var.pvt_key} --tags=role-wireguard ./ansible/setup.yml"
+    command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -u root -i '${path.module}/ansible/hosts' --private-key ${var.pvt_key} --tags=role-wireguard,k3s-setup ./ansible/setup.yml"
   }
+}
+
+output "ips" {
+  value = digitalocean_droplet.nodes.*.ipv4_address
 }
