@@ -1,2 +1,4 @@
 ---
 roles:
+  - name: githubixx.ansible_role_wireguard
+    version: 7.9.0

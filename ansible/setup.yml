@@ -2,16 +2,6 @@
 - become: yes
   hosts: all
   name: setup cluster node
-
-  tasks:
-    - name: Install wireguard
-      apt:
-        name: wireguard
-        autoclean: yes
-        autoremove: yes
-        state: present
-
-    - name: generate wireguard private and public key
-      ansible.builtin.shell: wg genkey | tee /etc/wireguard/privatekey | wg pubkey > /etc/wireguard/publickey
-      args:
-        creates: /etc/wireguard/privatekey
+  roles:
+    - role: githubixx.ansible_role_wireguard
+      tags: role-wireguard

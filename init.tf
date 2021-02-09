@@ -39,6 +39,18 @@ resource "digitalocean_droplet" "nodes" {
   ]
 }
 
+
+resource "local_file" "hosts" {
+  content  = templatefile("${path.module}/templates/hosts.tpl", { ips = digitalocean_droplet.nodes.*.ipv4_address })
+  filename = "${path.module}/ansible/hosts"
+}
+
+resource "local_file" "host_vars" {
+  for_each = zipmap(range(length(digitalocean_droplet.nodes)), digitalocean_droplet.nodes.*.ipv4_address)
+  content  = templatefile("${path.module}/templates/node_host_var.tpl", { ip_addr = each.value, index = each.key })
+  filename = "${path.module}/ansible/host_vars/node${each.key}"
+}
+
 resource "null_resource" "tester" {
   count = var.node_count
 
@@ -53,6 +65,6 @@ resource "null_resource" "tester" {
   }
 
   provisioner "local-exec" {
-    command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -u root -i '${element(digitalocean_droplet.nodes.*.ipv4_address, count.index)},' --private-key ${var.pvt_key} ./ansible/setup.yml"
+    command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -u root -i '${path.module}/ansible/hosts' --private-key ${var.pvt_key} --tags=role-wireguard ./ansible/setup.yml"
   }
 }
