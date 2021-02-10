@@ -53,37 +53,39 @@ resource "local_file" "hosts" {
   filename = "${path.module}/ansible/hosts"
 }
 
-resource "local_file" "host_vars" {
-  count = var.node_count
-  content = templatefile("${path.module}/templates/node_host_var.tpl", {
-    ip_addr = element(digitalocean_droplet.nodes.*.ipv4_address, count.index),
-    index   = count.index
-  })
-  filename = "${path.module}/ansible/host_vars/node${count.index}"
-}
 
-resource "local_file" "group_vars" {
-  content = templatefile("${path.module}/templates/group_vars.all.tpl", {
-    k3s_version : var.k3s_version
-  })
-  filename = "${path.module}/ansible/group_vars/all"
-}
-
-resource "local_file" "master_vars" {
-  content = templatefile("${path.module}/templates/k3s_master.tpl", {
-    ip : "${var.wireguard_base_ip}1"
+resource "local_file" "host_vars_master" {
+  content = templatefile("${path.module}/templates/node_host_vars_master.tpl", {
+    ip_addr = element(
+      sort(digitalocean_droplet.nodes.*.ipv4_address), 0
+    ),
+    wireguard_address = "${var.wireguard_base_ip}1"
   })
   filename = "${path.module}/ansible/host_vars/node0"
 }
 
-resource "local_file" "agent_vars" {
+
+resource "local_file" "host_vars_agent" {
   count = var.node_count - 1
-  content = templatefile("${path.module}/templates/k3s_agent.tpl", {
-    node_name = "node${count.index + 1}"
-    ip        = "${var.wireguard_base_ip}${count.index + 2}"
+  content = templatefile("${path.module}/templates/node_host_var_agent.tpl", {
+    ip_addr = element(
+      sort(digitalocean_droplet.nodes.*.ipv4_address), count.index + 1
+    ),
+    wireguard_address = "${var.wireguard_base_ip}${count.index + 2}",
+    node_name         = "node${count.index + 1}"
   })
   filename = "${path.module}/ansible/host_vars/node${count.index + 1}"
 }
+
+
+resource "local_file" "group_vars" {
+  content = templatefile("${path.module}/templates/group_vars.all.tpl", {
+    k3s_version : var.k3s_version,
+    control_node_address : "${var.wireguard_base_ip}1"
+  })
+  filename = "${path.module}/ansible/group_vars/all"
+}
+
 
 resource "null_resource" "tester" {
   count = var.node_count
