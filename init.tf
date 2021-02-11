@@ -1,7 +1,7 @@
 variable "do_token" {}
 
 variable "node_count" {
-  default = 2
+  default = 3
 }
 
 variable "pvt_key" {}
