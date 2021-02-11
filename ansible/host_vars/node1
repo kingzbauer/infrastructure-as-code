@@ -1,0 +1,11 @@
+---
+wireguard_address: "10.0.8.2"
+wireguard_port: 51820
+wireguard_endpoint: "138.197.69.84"
+wireguard_persistent_keepalive: "30"
+
+k3s_agent:
+  node-name: "node1"
+  with-node-id: true
+  node-ip: "10.0.8.2"
+  node-external-ip: "10.0.8.2"

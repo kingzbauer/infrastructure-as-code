@@ -39,7 +39,8 @@ data:
           },
           "kubernetes": {
               "kubeconfig": "__KUBECONFIG_FILEPATH__"
-          }
+          },
+          "container_settings": { "allow_ip_forwarding": true }
         },
         {
           "type": "portmap",
@@ -3840,5 +3841,3 @@ spec:
 
 ---
 # Source: calico/templates/configure-canal.yaml
-
-

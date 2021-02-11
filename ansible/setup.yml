@@ -7,3 +7,42 @@
       tags: role-wireguard
     - role: xanmanning.k3s
       tags: k3s-setup
+  tasks:
+    - name: download k3s cni plugins
+      get_url:
+        url: https://github.com/containernetworking/plugins/releases/download/v0.9.1/cni-plugins-linux-amd64-v0.9.1.tgz
+        dest: /var/local/cni.tgz
+      tags: k3s-setup
+      when: inventory_hostname in groups['master']
+    - name: create opt/cni/bin directory
+      ansible.builtin.file:
+        state: directory
+        mode: u=rwx,g=rx,o=rx
+        path: /opt/cni/bin
+      tags: k3s-setup
+    - name: extract cni plugins
+      unarchive:
+        src: /var/local/cni.tgz
+        remote_src: yes
+        dest: /opt/cni/bin/
+      tags: k3s-setup
+      when: inventory_hostname in groups['master']
+    - name: Enable ip forwarding
+      ansible.posix.sysctl:
+        name: net.ipv4.ip_forward
+        value: "1"
+        sysctl_set: yes
+        state: present
+        reload: yes
+      tags: k3s-setup
+    - name: copy the calico yaml file
+      template:
+        src: calico.yaml
+        dest: /var/local/calico.yaml
+        mode: u=rw,g=r,o=r
+      tags: k3s-setup
+      when: inventory_hostname in groups['master']
+    - name: install calico
+      ansible.builtin.shell: kubectl apply -f "/var/local/calico.yaml"
+      tags: k3s-setup
+      when: inventory_hostname in groups['master']
