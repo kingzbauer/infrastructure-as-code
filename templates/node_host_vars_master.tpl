@@ -13,3 +13,5 @@ k3s_server:
   flannel-backend: "none"
   disable-network-policy: true
   cluster-cidr: "192.168.0.0/16"
+  disable:
+    - traefik
