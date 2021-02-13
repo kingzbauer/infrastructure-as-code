@@ -6,3 +6,6 @@
 
 # terraform provider folder
 .terraform/
+
+# Secrets file
+secrets.auto.tfvars

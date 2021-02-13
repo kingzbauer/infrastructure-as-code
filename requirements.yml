@@ -4,3 +4,5 @@ roles:
     version: 7.9.0
   - name: xanmanning.k3s
     version: v2.5.3
+  - name: geerlingguy.swap
+    version: 1.0.2

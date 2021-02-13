@@ -1,4 +1,6 @@
-variable "do_token" {}
+variable "do_token" {
+  sensitive = true
+}
 
 variable "node_count" {
   default = 2
