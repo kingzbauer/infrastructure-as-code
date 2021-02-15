@@ -48,3 +48,23 @@
       ansible.builtin.shell: kubectl apply -f "/var/local/calico.yaml"
       tags: k3s-setup
       when: inventory_hostname in groups['master']
+      ignore_errors: true
+    - name: Install Helm in master nodes
+      ansible.builtin.shell: curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
+      tags: k3s-setup
+      when: inventory_hostname in groups['master']
+      ignore_errors: true
+    - name: Install traefik helm repository
+      shell: helm repo add traefik https://helm.traefik.io/traefik
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s/yaml
+      tags: k3s-setup
+      when: inventory_hostname in groups['master']
+    - name: Install traefik chart
+      shell: helm install traefik traefik/traefik
+      environment:
+        # specify the location of the k3s created kubeconfig file
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      tags: k3s-setup
+      when: inventory_hostname in groups['master']
+      ignore_errors: true

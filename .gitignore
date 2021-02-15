@@ -9,3 +9,10 @@
 
 # Secrets file
 secrets.auto.tfvars
+
+# ignore ansible generated files
+ansible/group_vars/*
+ansible/host_vars/*
+ansible/hosts
+terraform.tfstate
+terraform.tfstate.*
