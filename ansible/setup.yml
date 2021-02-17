@@ -60,6 +60,7 @@
         KUBECONFIG: /etc/rancher/k3s/k3s/yaml
       tags: k3s-setup
       when: inventory_hostname in groups['master']
+
     - name: Install traefik chart
       shell: helm install traefik traefik/traefik
       environment:
@@ -109,3 +110,11 @@
       ignore_errors: true
       when: inventory_hostname in groups['master']
       tags: k3s-setup
+
+    - name: Add DO token as a k8s secret
+      shell: |
+        kubectl create secret generic do-token \
+          --from-literal=do-token={{ do_token | string | b64encode }}
+      tags: [k3s-setup, digitalocean, secrets]
+      when: inventory_hostname in groups['master']
+      ignore_errors: true
