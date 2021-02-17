@@ -15,3 +15,11 @@ k3s_server:
   cluster-cidr: "192.168.0.0/16"
   disable:
     - traefik
+
+# Gitlab variables
+gitlab_owner: "${gitlab_owner}"
+gitlab_repo: "${gitlab_repo}"
+gitlab_branch: "${gitlab_branch}"
+gitlab_path: "${gitlab_path}"
+gitlab_token: "${gitlab_token}"
+gitlab_user: "${gitlab_user}"

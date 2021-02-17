@@ -3,8 +3,15 @@ variable "do_token" {
 }
 
 variable "node_count" {
-  default = 2
+  default = 1
 }
+
+variable "gitlab_owner" {}
+variable "gitlab_repo" {}
+variable "gitlab_branch" {}
+variable "gitlab_path" {}
+variable "gitlab_token" {}
+variable "gitlab_user" {}
 
 variable "pvt_key" {}
 
@@ -41,7 +48,7 @@ resource "digitalocean_droplet" "master" {
   name   = "master.beastly.co.ke"
   image  = data.digitalocean_image.beastly.id
   region = "nyc3"
-  size   = "s-1vcpu-1gb"
+  size   = "s-1vcpu-2gb"
 
   ssh_keys = [
     data.digitalocean_ssh_key.ubuntu_do.id
@@ -53,7 +60,7 @@ resource "digitalocean_droplet" "nodes" {
   name   = "beastly.co.ke-${count.index}"
   image  = data.digitalocean_image.beastly.id
   region = "nyc3"
-  size   = "s-1vcpu-1gb"
+  size   = "s-1vcpu-2gb"
 
   ssh_keys = [
     data.digitalocean_ssh_key.ubuntu_do.id
@@ -74,6 +81,12 @@ resource "local_file" "host_vars_master" {
   content = templatefile("${path.module}/templates/node_host_vars_master.tpl", {
     ip_addr           = digitalocean_droplet.master.ipv4_address,
     wireguard_address = "${var.wireguard_base_ip}1"
+    gitlab_owner      = var.gitlab_owner
+    gitlab_repo       = var.gitlab_repo
+    gitlab_branch     = var.gitlab_branch
+    gitlab_path       = var.gitlab_path
+    gitlab_token      = var.gitlab_token
+    gitlab_user       = var.gitlab_user
   })
   filename = "${path.module}/ansible/host_vars/master"
 }
@@ -82,13 +95,14 @@ resource "local_file" "host_vars_master" {
 resource "local_file" "host_vars_agent" {
   count = var.node_count
   content = templatefile("${path.module}/templates/node_host_var_agent.tpl", {
-    ip_addr           = digitalocean_droplet.nodes.*.ipv4_address
+    ip_addr = element(
+      digitalocean_droplet.nodes.*.ipv4_address, count.index
+    ),
     wireguard_address = "${var.wireguard_base_ip}${count.index + 2}",
     node_name         = "node${count.index}"
   })
   filename = "${path.module}/ansible/host_vars/node${count.index}"
 }
-
 
 resource "local_file" "group_vars" {
   content = templatefile("${path.module}/templates/group_vars.all.tpl", {
@@ -124,4 +138,8 @@ resource "null_resource" "tester" {
 
 output "ips" {
   value = local.all_nodes.*.ipv4_address
+}
+
+output "master_ip" {
+  value = digitalocean_droplet.master.ipv4_address
 }

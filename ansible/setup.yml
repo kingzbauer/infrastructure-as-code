@@ -68,3 +68,44 @@
       tags: k3s-setup
       when: inventory_hostname in groups['master']
       ignore_errors: true
+
+    - name: make sure pip3 is installed
+      apt: name=python3-pip state=present
+      tags: [python, k3s-setup, flux]
+      when: inventory_hostname in groups['master']
+
+    - name: Install openshift python module
+      pip:
+        name: openshift==0.11.2
+      tags: [python, k3s-setup, flux]
+      when: inventory_hostname in groups['master']
+
+    - name: create gitlab credentials secret
+      shell: |
+        kubectl create secret generic gitlab-http-credentials \
+          --from-literal=username={{ gitlab_user }} \
+          --from-literal=password={{ gitlab_token }}
+      tags: [k3s-setup, flux]
+      ignore_errors: true
+      when: inventory_hostname in groups['master']
+
+    - name: Install flux v2
+      shell: curl -s https://toolkit.fluxcd.io/install.sh | sudo bash
+      args:
+        creates: /usr/local/bin/flux
+      when: inventory_hostname in groups['master']
+      tags: [k3s-setup]
+
+    - name: Bootstrap flux
+      shell: |
+        flux bootstrap gitlab \
+          --owner {{ gitlab_owner }} \
+          --repository {{ gitlab_repo }} \
+          --branch {{ gitlab_branch }} \
+          --path {{ gitlab_path }} \
+          --kubeconfig /etc/rancher/k3s/k3s.yaml
+      environment:
+        GITLAB_TOKEN: "{{ gitlab_token }}"
+      ignore_errors: true
+      when: inventory_hostname in groups['master']
+      tags: k3s-setup
