@@ -114,7 +114,8 @@
     - name: Add DO token as a k8s secret
       shell: |
         kubectl create secret generic do-token \
-          --from-literal=do-token={{ do_token | string | b64encode }}
+          --from-literal=access-token={{ do_token }} \
+          --namespace cert-manager
       tags: [k3s-setup, digitalocean, secrets]
       when: inventory_hostname in groups['master']
       ignore_errors: true

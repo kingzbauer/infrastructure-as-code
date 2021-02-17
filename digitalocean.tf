@@ -110,6 +110,7 @@ resource "local_file" "host_vars_master" {
     gitlab_path       = var.gitlab_path
     gitlab_token      = var.gitlab_token
     gitlab_user       = var.gitlab_user
+    do_token          = var.do_token
   })
   filename = "${path.module}/ansible/host_vars/master"
 }
