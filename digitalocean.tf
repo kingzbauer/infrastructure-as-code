@@ -13,6 +13,8 @@ variable "gitlab_path" {}
 variable "gitlab_token" {}
 variable "gitlab_user" {}
 
+variable "main_domain" {}
+
 variable "pvt_key" {}
 
 variable "k3s_version" {
@@ -44,6 +46,7 @@ data "digitalocean_ssh_key" "ubuntu_do" {
   name = "ubuntu_do"
 }
 
+
 resource "digitalocean_droplet" "master" {
   name   = "master.beastly.co.ke"
   image  = data.digitalocean_image.beastly.id
@@ -67,6 +70,26 @@ resource "digitalocean_droplet" "nodes" {
   ]
 }
 
+# Link the domain to the master node
+resource "digitalocean_domain" "main" {
+  name = var.main_domain
+}
+
+resource "digitalocean_record" "a" {
+  domain = digitalocean_domain.main.name
+  type   = "A"
+  name   = "@"
+  value  = digitalocean_droplet.master.ipv4_address
+  ttl    = 60
+}
+
+resource "digitalocean_record" "catchall" {
+  domain = digitalocean_domain.main.name
+  type   = "CNAME"
+  name   = "*"
+  value  = "@"
+  ttl    = 60
+}
 
 resource "local_file" "hosts" {
   content = templatefile("${path.module}/templates/hosts.tpl", {
