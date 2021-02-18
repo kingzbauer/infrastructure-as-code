@@ -12,3 +12,6 @@
 - name: Environment check script
   shell: |
     curl -sSfL https://raw.githubusercontent.com/longhorn/longhorn/v1.1.0/scripts/environment_check.sh | bash
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  when: inventory_hostname in groups['master']
