@@ -119,3 +119,10 @@
       tags: [k3s-setup, digitalocean, secrets]
       when: inventory_hostname in groups['master']
       ignore_errors: true
+
+    - name: Install longhorn
+      include_role:
+        name: longhorn
+        apply:
+          tags: [longhorn]
+      tags: [longhorn]
