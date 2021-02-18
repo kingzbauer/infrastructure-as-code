@@ -15,3 +15,12 @@
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   when: inventory_hostname in groups['master']
+
+- name: Install longhorn
+  environment:
+    K8S_AUTH_KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  community.kubernetes.k8s:
+    state: present
+    template:
+      path: longhorn.yaml
+  when: inventory_hostname in groups['master']
