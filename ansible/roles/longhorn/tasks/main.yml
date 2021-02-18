@@ -1,4 +1,9 @@
-- name: Install open-iscsi
+- name: Install open-iscsi, NFSv4 client
   apt:
-    name: open-iscsi
     state: present
+    name:
+      - open-iscsi
+      - nfs-common
+      - curl
+      - util-linux
+      - grep
