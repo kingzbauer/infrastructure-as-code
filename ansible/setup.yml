@@ -95,7 +95,7 @@
       args:
         creates: /usr/local/bin/flux
       when: inventory_hostname in groups['master']
-      tags: [k3s-setup]
+      tags: [k3s-setup, flux]
 
     - name: Bootstrap flux
       shell: |
@@ -109,7 +109,7 @@
         GITLAB_TOKEN: "{{ gitlab_token }}"
       ignore_errors: true
       when: inventory_hostname in groups['master']
-      tags: k3s-setup
+      tags: [k3s-setup, flux]
 
     - name: Add DO token as a k8s secret
       shell: |
@@ -126,3 +126,13 @@
         apply:
           tags: [longhorn]
       tags: [longhorn]
+
+    - name: Install cert manager
+      environment:
+        K8S_AUTH_KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      community.kubernetes.k8s:
+        state: present
+        template:
+          path: cert-manager.yaml
+      when: inventory_hostname in groups['master']
+      tags: [k3s-setup, cert-manager]

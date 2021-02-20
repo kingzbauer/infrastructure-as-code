@@ -466,9 +466,9 @@ data:
     storage-over-provisioning-percentage:
     storage-minimal-available-percentage:
     upgrade-checker:
-    default-replica-count:
+    default-replica-count: 2
     default-data-locality:
-    guaranteed-engine-cpu:
+    guaranteed-engine-cpu: 0.075
     default-longhorn-static-storage-class:
     backupstore-poll-interval:
     taint-toleration:
@@ -566,7 +566,7 @@ data:
     reclaimPolicy: Delete
     volumeBindingMode: Immediate
     parameters:
-      numberOfReplicas: "3"
+      numberOfReplicas: "2"
       staleReplicaTimeout: "2880"
       fromBackup: ""
     #  diskSelector: "ssd,fast"
