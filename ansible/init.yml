@@ -1,0 +1,9 @@
+---
+- become: yes
+  hosts: control
+  name: boostrap k3s cluster
+  roles:
+    - role: bootstrap
+      tags:
+        - bootstrap
+        - k3s

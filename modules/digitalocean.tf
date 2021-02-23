@@ -46,6 +46,11 @@ data "digitalocean_ssh_key" "ubuntu_do" {
   name = "ubuntu_do"
 }
 
+resource "digitalocean_vpc" "leannx" {
+  name     = "leannx"
+  region   = "nyc3"
+  ip_range = "10.10.10.0/24"
+}
 
 resource "digitalocean_droplet" "master" {
   name   = "master.beastly.co.ke"
@@ -56,6 +61,19 @@ resource "digitalocean_droplet" "master" {
   ssh_keys = [
     data.digitalocean_ssh_key.ubuntu_do.id
   ]
+
+  vpc_uuid = digitalocean_vpc.leannx.id
+
+  connection {
+    host = self.ipv4_address
+    type = "ssh"
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "sudo apt-get update --upgrade -y", "echo Done!"
+    ]
+  }
 }
 
 resource "digitalocean_droplet" "nodes" {
@@ -68,6 +86,19 @@ resource "digitalocean_droplet" "nodes" {
   ssh_keys = [
     data.digitalocean_ssh_key.ubuntu_do.id
   ]
+
+  vpc_uuid = digitalocean_vpc.leannx.id
+
+  connection {
+    host = self.ipv4_address
+    type = "ssh"
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "sudo apt-get update --upgrade -y", "echo Done!"
+    ]
+  }
 }
 
 # Link the domain to the master node
@@ -103,6 +134,7 @@ resource "local_file" "hosts" {
 resource "local_file" "host_vars_master" {
   content = templatefile("${path.module}/templates/node_host_vars_master.tpl", {
     ip_addr           = digitalocean_droplet.master.ipv4_address,
+    private_addr      = digitalocean_droplet.master.ipv4_address_private
     wireguard_address = "${var.wireguard_base_ip}1"
     gitlab_owner      = var.gitlab_owner
     gitlab_repo       = var.gitlab_repo
@@ -122,6 +154,10 @@ resource "local_file" "host_vars_agent" {
     ip_addr = element(
       digitalocean_droplet.nodes.*.ipv4_address, count.index
     ),
+    private_addr = element(
+      digitalocean_droplet.nodes.*.ipv4_address_private,
+      count.index
+    ),
     wireguard_address = "${var.wireguard_base_ip}${count.index + 2}",
     node_name         = "node${count.index}"
   })
@@ -131,7 +167,8 @@ resource "local_file" "host_vars_agent" {
 resource "local_file" "group_vars" {
   content = templatefile("${path.module}/templates/group_vars.all.tpl", {
     k3s_version : var.k3s_version,
-    control_node_address : "${var.wireguard_base_ip}1"
+    # control_node_address : "${var.wireguard_base_ip}1"
+    control_node_address : digitalocean_droplet.master.ipv4_address_private
   })
   filename = "${path.module}/ansible/group_vars/all"
 }
@@ -146,7 +183,10 @@ resource "null_resource" "tester" {
   count = var.node_count + 1
 
   connection {
-    host = element(local.all_nodes.*.ipv4_address, count.index)
+    host = element(
+      local.all_nodes.*.ipv4_address,
+      count.index
+    )
   }
 
   provisioner "remote-exec" {
@@ -156,7 +196,7 @@ resource "null_resource" "tester" {
   }
 
   provisioner "local-exec" {
-    command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -u root -i '${path.module}/ansible/hosts' --private-key ${var.pvt_key} --tags=role-wireguard,k3s-setup,longhorn ./ansible/setup.yml"
+    command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -u root -i '${path.module}/ansible/hosts' --private-key ${var.pvt_key} --tags=k3s-setup,longhorn ./ansible/setup.yml"
   }
 }
 
@@ -166,4 +206,8 @@ output "ips" {
 
 output "master_ip" {
   value = digitalocean_droplet.master.ipv4_address
+}
+
+output "master_private" {
+  value = digitalocean_droplet.master.ipv4_address_private
 }

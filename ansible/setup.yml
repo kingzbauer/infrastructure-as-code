@@ -44,36 +44,63 @@
         mode: u=rw,g=r,o=r
       tags: k3s-setup
       when: inventory_hostname in groups['master']
+
     - name: install calico
       ansible.builtin.shell: kubectl apply -f "/var/local/calico.yaml"
       tags: k3s-setup
       when: inventory_hostname in groups['master']
       ignore_errors: true
+
     - name: Install Helm in master nodes
       ansible.builtin.shell: curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
       tags: k3s-setup
       when: inventory_hostname in groups['master']
       ignore_errors: true
+
+    #- name: Install traefik helm repository
+      #shell: helm repo add traefik https://helm.traefik.io/traefik
+      #environment:
+        #KUBECONFIG: /etc/rancher/k3s/k3s/yaml
+      #tags: k3s-setup
+      #when: inventory_hostname in groups['master']
+
     - name: Install traefik helm repository
-      shell: helm repo add traefik https://helm.traefik.io/traefik
+      community.kubernetes.helm_repository:
+        name: traefik
+        repo_url: https://helm.traefik.io/traefik
       environment:
-        KUBECONFIG: /etc/rancher/k3s/k3s/yaml
+        K8S_AUTH_KUBECONFIG: /etc/rancher/k3s/k3s.yaml
       tags: k3s-setup
       when: inventory_hostname in groups['master']
 
     - name: Install traefik chart
-      shell: helm install traefik traefik/traefik
+      community.kubernetes.helm:
+        name: traefik
+        chart_ref: traefik/traefik
+        release_namespace: traefik
+        create_namespace: true
       environment:
-        # specify the location of the k3s created kubeconfig file
-        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+        K8S_AUTH_KUBECONFIG: /etc/rancher/k3s/k3s.yaml
       tags: k3s-setup
       when: inventory_hostname in groups['master']
       ignore_errors: true
+
+    #- name: Install traefik chart
+      #shell: helm install traefik traefik/traefik
+      #environment:
+        ## specify the location of the k3s created kubeconfig file
+        #KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      #tags: k3s-setup
+      #when: inventory_hostname in groups['master']
+      #ignore_errors: true
 
     - name: make sure pip3 is installed
       apt: name=python3-pip state=present
       tags: [python, k3s-setup, flux]
       when: inventory_hostname in groups['master']
+      register: apt_action
+      retries: 20
+      until: apt_action is success or ('Failed to lock apt for exclusive operation' not in apt_action.msg and '/var/lib/dpkg/lock' not in apt_action.msg)
 
     - name: Install openshift python module
       pip:
@@ -96,6 +123,16 @@
         creates: /usr/local/bin/flux
       when: inventory_hostname in groups['master']
       tags: [k3s-setup, flux]
+
+    - name: Install cert manager
+      environment:
+        K8S_AUTH_KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      community.kubernetes.k8s:
+        state: present
+        template:
+          path: cert-manager.yaml
+      when: inventory_hostname in groups['master']
+      tags: [k3s-setup, cert-manager]
 
     - name: Bootstrap flux
       shell: |
@@ -126,13 +163,3 @@
         apply:
           tags: [longhorn]
       tags: [longhorn]
-
-    - name: Install cert manager
-      environment:
-        K8S_AUTH_KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-      community.kubernetes.k8s:
-        state: present
-        template:
-          path: cert-manager.yaml
-      when: inventory_hostname in groups['master']
-      tags: [k3s-setup, cert-manager]

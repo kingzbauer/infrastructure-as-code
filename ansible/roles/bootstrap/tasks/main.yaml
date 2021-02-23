@@ -1,0 +1,108 @@
+- name: Install Helm in master nodes
+  ansible.builtin.shell: curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
+  tags: bootstrap
+  ignore_errors: true
+
+- name: Install traefik helm repository
+  community.kubernetes.helm_repository:
+    name: traefik
+    repo_url: https://helm.traefik.io/traefik
+  environment:
+    K8S_AUTH_KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  tags: k3s-setup
+
+- name: Install traefik chart
+  community.kubernetes.helm:
+    name: traefik
+    chart_ref: traefik/traefik
+    release_namespace: traefik
+    create_namespace: true
+  environment:
+    K8S_AUTH_KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  tags: bootstrap
+  ignore_errors: true
+
+- name: Install flux v2
+  shell: curl -s https://toolkit.fluxcd.io/install.sh | sudo bash
+  args:
+    creates: /usr/local/bin/flux
+  tags: [bootstrap]
+
+- name: make sure pip3 is installed
+  apt: name=python3-pip state=present
+  tags: [python, flux, bootstrap]
+  register: apt_action
+  retries: 20
+  until: apt_action is success or ('Failed to lock apt for exclusive operation' not in apt_action.msg and '/var/lib/dpkg/lock' not in apt_action.msg)
+
+- name: Install openshift python module
+  pip:
+    name: openshift==0.11.2
+  tags: [flux, bootstrap]
+
+- name: Install cert manager
+  environment:
+    K8S_AUTH_KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  community.kubernetes.k8s:
+    state: present
+    template:
+      path: cert-manager.yaml
+  tags: [bootstrap]
+
+- name: Add DO token as a k8s secret
+  shell: |
+    kubectl create secret generic do-token \
+      --from-literal=access-token={{ do_token }} \
+      --namespace cert-manager
+  tags: [digitalocean, boostrap]
+  ignore_errors: true
+
+- name: create gitlab credentials secret
+  shell: |
+    kubectl create secret generic gitlab-http-credentials \
+      --from-literal=username={{ gitlab_user }} \
+      --from-literal=password={{ gitlab_token }}
+  tags: [gitlab, bootstrap]
+  ignore_errors: true
+
+- name: Bootstrap flux
+  shell: |
+    flux bootstrap gitlab \
+      --owner {{ gitlab_owner }} \
+      --repository {{ gitlab_repo }} \
+      --branch {{ gitlab_branch }} \
+      --path {{ gitlab_path }} \
+      --kubeconfig /etc/rancher/k3s/k3s.yaml
+  environment:
+    GITLAB_TOKEN: "{{ gitlab_token }}"
+  ignore_errors: true
+  tags: [bootstrap]
+
+- name: Install MetalLB via helm
+  community.kubernetes.helm:
+    name: metallb
+    chart_ref: stable/metallb
+    release_namespace: metallb
+    create_namespace: true
+  environment:
+    K8S_AUTH_KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  tags: [bootstrap, metallb]
+  ignore_errors: true
+
+- name: create metallb config map
+  community.kubernetes.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        namespace: metallb
+        name: metallb-config
+      data:
+        config: |
+          address-pools:
+          - name: default
+            protocol: layer2
+            addresses:
+            - "{{ ip_address }}/32"
+  tags: [bootstrap, metallb]
